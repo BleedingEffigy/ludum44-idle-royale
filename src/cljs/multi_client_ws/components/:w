@@ -1,0 +1,102 @@
+(ns multi-client-ws.components.sketch
+  (:require-macros
+    [cljs.core.async.macros :as asyncm :refer (go go-loop)])
+    (:require [quil.core :as q :include-macros true]
+              [quil.middleware :as m]
+              [cljs.core.async :as async :refer (<! >! put! chan)]))
+
+(def width 600)
+(def height 600)
+
+; Values and functions for io game
+
+(def velocity-state (atom {:x nil :y nil}))
+
+(defn new-blob [x y r]
+  (let [x x
+        y y
+        r r]
+    {:position {:x x :y y}
+     :radius r
+     :show (fn [] (
+                  (q/fill 255)
+                  (q/ellipse x y (* r 2) (* r 2))))}  ))
+
+(def blobs (for [i (range 10)] (conj {} (new-blob (- (rand-int width) 8) (- (rand-int height) 8) 16))))
+
+(defn setup []
+  ; Set frame rate to 30 frames per second.
+  (q/frame-rate 30)
+  ; Set color mode to HSB (HSV) instead of default RGB.
+  (q/color-mode :hsb)
+  ; setup function returns initial state. It contains
+  ; circle color and position.
+  {:color 0
+   :angle 0})
+
+(defn update-state [state]
+  ; Update sketch state by changing circle color and position.
+  ;(def vel [q/mouse-x q/mouse-y])
+  ;(def vel [(some? (q/key-as-key)) ])
+  {:color (mod (+ (:color state) 0.7) 255)
+   :angle (+ (:angle state) 0.1)
+   :vel-x (@velocity-state :x)
+   :vel-y (@velocity-state :y)})
+
+(defn draw-state [state]
+  (let [main-blob (new-blob (/ width 2) (/ height 2) 64)]
+  ; Clear the sketch by filling it with light-grey color.
+  (q/background 240)
+  ; Set circle color.
+  (q/fill (:color state) 255 255)
+  ;init and show blob
+  ((main-blob :show))
+ ;(if (q/key-pressed?)
+ ;   (case (q/key-as-keyword)
+ ;     :ArrowUp (println "go up!" (q/key-code))
+ ;     :ArrowDown (println "go down" (q/key-code))
+ ;     "not recognized") )
+  (doseq [blob blobs]
+    ((blob :show)))
+  ; Calculate x and y coordinates of the circle.
+ ; (let [angle (:angle state)
+ ;       x (* 150 (q/cos angle))
+ ;       y (* 150 (q/sin angle))]
+ ;   ; Move origin point to the center of the sketch.
+ ;   (q/with-translation [(/ (q/width) 2)
+ ;                        (/ (q/height) 2)]
+ ;     ; Draw the circle.
+ ;     (q/ellipse x y 100 100)))
+  ))
+
+(defn key-pressed []
+;  (println "a key was pressed" (q/key-as-keyword))
+  (let [key (q/key-as-keyword)]
+    (case key
+;      (:ArrowUp) (swap! velocity-state assoc-in :y 3)
+      :ArrowDown (swap! velocity-state assoc :y -3)
+;      (:ArrowLeft) (swap! velocity-state assoc-in :x -3)
+;      (:ArrowRight) (swap! velocity-state assoc-in :x 3)
+       (println key))))
+
+(defn key-released []
+  (println "the key was released"))
+
+; this function is called in index.html
+(defn ^:export run-sketch []
+  (q/defsketch drdc
+    :host "main"
+    :size [500 500]
+    ; setup function called only once, during sketch initialization.
+    :setup setup
+    ; update-state is called on each iteration before draw-state.
+    :update update-state
+    :draw draw-state
+    :key-pressed key-pressed
+    :key-released key-released
+    ; This sketch uses functional-mode middleware.
+    ; Check quil wiki for more info about middlewares and particularly
+    ; fun-mode.
+    :middleware [m/fun-mode]))
+
+(defn test-string [] (str "This test passed"))
